@@ -1,0 +1,58 @@
+
+<div id="custom-header">
+    <h1>FIELDSA DASHBOARD</h1>
+</div>
+
+<style>
+header[data-testid="stHeader"] {
+    display: none;
+}
+section.main > div {
+    padding: 0;
+}
+
+#custom-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(to right,  #f37336, #fd991f);
+    padding: 0px 50px;
+    display: flex;
+    align-items: center;
+    z-index:100000;
+    gap: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#custom-header h1 {
+    color: white;
+    font-size: 35px;
+    margin: 0;
+}
+
+.stApp {
+    padding-top: 80px;
+}
+/* Hides the file uploader label and spacing */
+[data-testid="stFileUploaderLabel"] {
+    display: none !important;
+}
+
+</style>
+<style>
+.wo-box {
+    display: inline-block;
+    background-color: #FFB347; /* Warna default */
+    color: white;
+    font-weight: bold;
+    padding: 10px 20px;
+    margin: 5px;
+    border-radius: 10px;
+    text-align: center;
+    cursor: pointer;
+}
+.wo-box:hover {
+    background-color: #FF8C00; /* Warna saat hover */
+}
+</style>
