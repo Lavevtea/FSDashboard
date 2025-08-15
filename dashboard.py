@@ -30,49 +30,9 @@ if uploaded is not None:
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     st.write("## Status Duration & SLA Calculation")
     st.caption("Click the button below to calculate the status duration, status SLA and export as Excel")  
      
-    # def namafileauto(base, ext=".xlsx"):
-    # i=1
-    # filename=f"{base}({i}){ext}"
-    # while os.path.exists(filename):
-    #     i+=1
-    #     filename=f"{base}({i}){ext}"
-    # return filename
 
     def parse(durasi):
         if durasi is None or durasi in ("N/A", "") or pd.isna(durasi):
@@ -372,10 +332,7 @@ if uploaded is not None:
             lastupdate= filedate.strftime("%d %B %Y")
         except:
             lastupdate= "Date not valid"
-        
-        # Last Update via max date in date range
-        # lastupdate= df["Created"].max().strftime("%d %B %Y")
-        
+  
         col2.metric("Last Data Update", lastupdate)
         
         dfstat= df.copy() 
@@ -479,28 +436,7 @@ if uploaded is not None:
                     st.markdown(f"**{namadicol}**")
                     st.dataframe(addcoldata)
                 else:
-                    st.warning("Kolom tidak ditemukan")
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
+                    st.warning("Kolom tidak ditemukan")                
                 
                 
                 
@@ -600,6 +536,3 @@ if uploaded is not None:
             st.dataframe(statussummary)
         else:
             st.warning("No data available")
-        
-#Nyobacommit
-      
