@@ -6,6 +6,8 @@ from io import BytesIO
 import numpy as np
 import time
 import os
+import datetime as dt
+import textwrap
 
 
 st.set_page_config(layout="wide", page_title="FIELDSA DASHBOARD")
@@ -16,6 +18,7 @@ with open("header.html", "r") as head:
 uploaded=st.file_uploader("Upload Excel File", type=["xlsx", "csv"])
 
 if uploaded is not None:
+    up2webtime= pd.Timestamp.now()
     @st.cache_data
     def load(file):
         if file.name.endswith(".csv"):
@@ -24,16 +27,13 @@ if uploaded is not None:
             return pd.read_excel(file, sheet_name=None)
     exceldata=load(uploaded)
     df= exceldata.get("WorkOrder")
+    if df is not None:
+        df["uptime"]= up2webtime
     
     
     
     
     
-    
-    st.write("## Status Duration & SLA Calculation")
-    st.caption("Click the button below to calculate the status duration, status SLA and export as Excel")  
-     
-
     def parse(durasi):
         if durasi is None or durasi in ("N/A", "") or pd.isna(durasi):
             return None
@@ -81,7 +81,6 @@ if uploaded is not None:
     def exportfile(uploadedfile):
         if not uploadedfile.name.lower().endswith(".xlsx"):
             return None, None
-        
         
         xcel= pd.ExcelFile(uploadedfile)
         pake= {"HistoryWorkOrder", "WorkOrder", "Rca"}
@@ -235,7 +234,7 @@ if uploaded is not None:
 
 
 
-        urutanyangkumau= [
+        urutanstatuswo= [
             'WONumber','Anomali','Open','Assign to dispatch external','Assign to technician','Accept',
             'Travel','Arrive','On Progress','Done','Work Order Confirmation Approve','Complete',
             'Complete with note approve','Complete with note request','Complete with note reject',
@@ -251,7 +250,7 @@ if uploaded is not None:
             'Done - Complete','SLA Done-Complete'
         ]
 
-        final= final[[col for col in urutanyangkumau if col in final.columns]]
+        final= final[[col for col in urutanstatuswo if col in final.columns]]
 
         buffer= BytesIO()
         with pd.ExcelWriter(buffer, engine= "xlsxwriter") as writer:
@@ -260,24 +259,19 @@ if uploaded is not None:
         suggestname = f"AllTaskList_FIELDSA_{pd.Timestamp.now():%Y%m%d_%H%M%S}.xlsx"
         return buffer, suggestname
     
-    pikachu, charizard= st.columns([1, 2])
-    with pikachu:
-        if st.button("Export to Excel", type="primary", use_container_width= True):
-            with st.spinner("Processing..."):
-                out, filename= exportfile(uploaded)
-            if out is not None:
-                st.success("Export ready")
-                st.download_button("Download Excel", data= out.getvalue(), file_name= filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True )
-            else:
-                st.warning("Export Failed")
-
-
-
-
-
-
-
-
+        # st.write("## Status Duration & SLA Calculation")
+        # st.caption("Click the button below to calculate the status duration, status SLA and export as Excel")  
+        # exportbutton, fillerexpbutton1, fillerexpbutton2= st.columns([1, 2, 3])
+        # with exportbutton:
+        #     if st.button("Export to Excel", type="primary", use_container_width= True):
+        #         with st.spinner("Processing..."):
+        #             out, filename= exportfile(uploaded)
+        #         if out is not None:
+        #             st.success("Export ready")
+        #             st.download_button("Download Excel", data= out.getvalue(), file_name= filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True )
+        #         else:
+        #             st.warning("Export Failed")
+                                
 
 
 
@@ -303,10 +297,7 @@ if uploaded is not None:
     if len(rangetgl)== 2:
         tglawal,tglakhir= rangetgl
         df= df[(df["Created"]>=pd.to_datetime(tglawal)) &
-               (df["Created"]<=pd.to_datetime(tglakhir)+pd.Timedelta(days=1)-pd.Timedelta(seconds=1))]
-    
-    
-            
+               (df["Created"]<=pd.to_datetime(tglakhir)+pd.Timedelta(days=1)-pd.Timedelta(seconds=1))] 
     regionmap={
         "Bali": "East",
         "Central Java": "Central",
@@ -320,22 +311,31 @@ if uploaded is not None:
         "Northern Sumatera":"West",
         "Southern Sumatera":"West"
     }
-    
+
     if "SubRegion" in df.columns:
         df["Region"]= df["SubRegion"].map(regionmap).fillna("Unknown")
     if df is not None:
-        col1,col2=st.columns(2)
-        col1.metric("Total wo", len(df))
+        col1,col2, col3=st.columns([1,2,2])
+        col1.metric("Total WO Number", len(df))
         try:
-            identifydate= uploaded.name.split("_")[1][:8]
-            filedate= pd.to_datetime(identifydate, format="%Y%m%d")
-            lastupdate= filedate.strftime("%d %B %Y")
+            identify= pd.to_datetime(uploaded.name.split("_")[1].split(".")[0], format="%Y%m%d%H%M%S")
+            lastupdate= identify.strftime("%d %B %Y %H:%M:%S")
         except:
             lastupdate= "Date not valid"
-  
-        col2.metric("Last Data Update", lastupdate)
+    
+        col2.metric("Date pulled from FIELDSA", lastupdate)
+        last_input_refresh= df["uptime"].max().strftime("%d %B %Y %H:%M:%S")
+        col3.metric("Last Input/Refresh", last_input_refresh)
         
         dfstat= df.copy() 
+        
+        
+        
+        
+        
+        
+        
+        
         
         st.write("## WorkOrder Chart")
         location= ["Region", "SubRegion", "City [All]", "City [Top 10]"]
@@ -358,12 +358,28 @@ if uploaded is not None:
         
         
         with filter1:
-            loc= st.selectbox("Location", options=location, format_func= lambda x: "Sub Region" if x== "SubRegion" else x, key= "locfilter")
-            loccol= "City" if "City" in loc else loc
-            if loc=="City [Top 10]":
-                top10= df["City"].value_counts().nlargest(10).index.tolist()
-                df= df[df["City"].isin(top10)]
-                
+            piliharea = st.selectbox("Location",options=["Region", "SubRegion", "City [All]", "City [Top 10]"],format_func= lambda x: "Sub Region" if x== "SubRegion" else x, key= "location1")
+            loccol = "City" if "City" in piliharea else piliharea 
+            if loccol in df.columns:
+                if piliharea == "City [Top 10]":
+                    yangdisaji = df["City"].value_counts().nlargest(10).index.tolist()
+                else:
+                    yangdisaji = sorted(df[loccol].dropna().astype(str).unique().tolist())
+            else:
+                yangdisaji = []
+
+            filter_dalamarea = st.multiselect(f"Select {loccol}", options=yangdisaji, default=yangdisaji, key=f"multisel1_{loccol}")
+            if filter_dalamarea:
+                df=df[df[loccol].astype(str).isin(filter_dalamarea)]
+            else:
+                st.warning("gaada filter yang dipilih")
+            
+                    # loc= st.selectbox("Location", options=location, format_func= lambda x: "Sub Region" if x== "SubRegion" else x, key= "locfilter")
+                    # loccol= "City" if "City" in loc else loc
+                    # if loc=="City [Top 10]":
+                    #     top10= df["City"].value_counts().nlargest(10).index.tolist()
+                    #     df= df[df["City"].isin(top10)]
+        
         with filter2:
             st.markdown("Division")
             with st.expander("Division"):
@@ -405,38 +421,34 @@ if uploaded is not None:
    
         
         
-        if loc:
-            normcol= df[loccol]
-            itungisi= normcol.value_counts().reset_index()
-            itungisi.columns=[loccol, "Count"]
-            
-            bar= px.bar(
-                 itungisi,
+        if loccol in df.columns:
+            normcol = df[loccol].astype(str)
+            itungisi = normcol.value_counts().reset_index()
+            itungisi.columns = [loccol, "Count"]
+
+            bar = px.bar(
+                itungisi,
                 x= loccol,
                 y= "Count",
                 color= loccol,
                 title= f"Based on {ubahheader.get(loccol, loccol)}",
                 labels= {loccol: ubahheader.get(loccol,loccol), "Count": "Jumlah"}
             )
-                
             st.plotly_chart(bar, use_container_width=True)
         else:
-            st.warning ("No column available for visualization")
-
-        tambahcols=[loccol,"CustomerName", "VendorName", "Reason"]
-        colkotak=st.columns(len(tambahcols))
-        
+            st.warning("gaada kolom yang bisa dipakai")
+        tambahcols = [loccol, "CustomerName", "VendorName", "Reason"]
+        colkotak = st.columns(len(tambahcols))
         for index, namadicol in enumerate(tambahcols):
-            displayindex= index+1
             with colkotak[index]:
                 if namadicol in df.columns:
-                    addcoldata= df[namadicol].value_counts().reset_index()
-                    addcoldata.columns= [namadicol, "Amount"]
-                    addcoldata.index= range(1, len(addcoldata) +1)
+                    addcoldata = df[namadicol].astype(str).value_counts().reset_index()
+                    addcoldata.columns = [namadicol, "Amount"]
+                    addcoldata.index = range(1, len(addcoldata) + 1)
                     st.markdown(f"**{namadicol}**")
                     st.dataframe(addcoldata)
                 else:
-                    st.warning("Kolom tidak ditemukan")                
+                    st.warning(f"Kolom {namadicol} tidak ditemukan")           
                 
                 
                 
@@ -490,9 +502,18 @@ if uploaded is not None:
         with locfilter2:
             loc= st.selectbox("Location", options=location, format_func= lambda x: "Sub Region" if x== "SubRegion" else x, key= "location2")
             loccol= "City" if "City" in loc else loc
-            if loc=="City [Top 10]":
-                top10= dfstat["City"].value_counts().nlargest(10).index.tolist()
-                dfstat= dfstat[dfstat["City"].isin(top10)]
+            if loccol in dfstat.columns:
+                if loc=="City [Top 10]":
+                    pilihh= dfstat["City"].value_counts().nlargest(10).index.tolist()
+                else:
+                    pilihh= sorted(dfstat[loccol].dropna().astype(str).unique().tolist())
+            else:
+                pilihh=[]
+            filter_dalamarea= st.multiselect(f"Select {loccol}", options= pilihh, default=pilihh, key=f"multisel2_{loccol}")
+            if filter_dalamarea:
+                dfstat=dfstat[dfstat[loccol].astype(str).isin(filter_dalamarea)]
+            else:
+                st.warning("gaada filter yang dipilih")
 
         with statfilter:
             st.markdown("Status")
@@ -511,7 +532,7 @@ if uploaded is not None:
         if statusterpilih:
             filtereddf= dfstat[dfstat["StatusReport"].isin(statusterpilih)]
         else:
-            st.warning("No status chosen")
+            st.warning("No status picked")
             filtereddf = pd.DataFrame()
         
         if not filtereddf.empty:
@@ -536,3 +557,309 @@ if uploaded is not None:
             st.dataframe(statussummary)
         else:
             st.warning("No data available")
+
+
+
+
+
+
+
+        st.write("## Status Report SLA WorkOrder Summary")
+        if 'statusmap' not in globals():
+            statusmap={
+            "Open": "OPEN",
+            
+            "Assign To Technician": "ONPROGRESS",
+            "Accept": "ONPROGRESS",
+            "Travel": "ONPROGRESS",
+            "Arrive": "ONPROGRESS",
+            "On Progress": "ONPROGRESS",
+            "Return": "ONPROGRESS",
+            "Assign To Dispatch External": "ONPROGRESS",
+            "Complete With Note Reject": "ONPROGRESS",
+            "Revise": "ONPROGRESS",
+            "Revise": "ONPROGRESS",
+            "Return By Technician": "ONPROGRESS",
+            "Postpone Is Revised": "POSTPONE",
+            "Return Is Revised": "ONPROGRESS",
+            "Provisioning In Progress": "ONPROGRESS",
+            "Provisioning Success": "ONPROGRESS",
+            
+            "Complete With Note Approve": "COMPLETE",
+            "Complete": "COMPLETE",
+            "Done": "COMPLETE",
+            "Work Order Confirmation Approve": "COMPLETE",
+            "Complete With Note Request": "COMPLETE",
+            "Posted To AX Integration Success": "COMPLETE",
+            
+            "Postpone Request": "POSTPONE",
+            "Postpone": "POSTPONE",
+           
+            "Sms Integration Failed": "INTEGRATION FAILED",
+            "Posted To AX Integration Failed": "INTEGRATION FAILED",
+            "Provisioning Failed": "INTEGRATION FAILED",
+            
+            "Cancel Work Order": "CANCEL",}
+
+        if isinstance(exceldata, dict) and "WorkOrder" in exceldata:
+            sladf= exceldata["WorkOrder"].copy()
+        elif"df" in locals():
+            sladf= df.copy()
+        else:
+            sladf= pd.DataFrame()
+        
+        for s in sladf.columns:
+            if sladf[s].dtype== object:
+                sladf[s]= sladf[s].astype(str).str.strip()
+        location3= ["Region", "SubRegion", "City [All]", "City [Top 10]"]
+        kolsla1, kolsla2, kolsla3 = st.columns(3)
+        if "kolsla1" not in st.session_state:
+            st.session_state.location3= "Region"
+        with kolsla1:
+            area= st.selectbox("Location", options=location3, format_func= lambda x: "Sub Region" if x== "SubRegion" else x, key= "locfilter3")
+            loccol= "City" if "City" in area else area
+            if loccol in sladf.columns:
+                if area== "City [Top 10]":
+                    tampilkan= sladf["City"].value_counts().nlargest(10).index.tolist()
+                else:
+                    tampilkan= sorted(sladf[loccol].dropna().astype(str).unique().tolist())
+            else:
+                tampilkan=[]
+            filter_diarea= st.multiselect(f"Select {loccol}", options=tampilkan, default=tampilkan, key=f"multisel3_{loccol}")
+            if filter_diarea:
+                sladf=sladf[sladf[loccol].astype(str).isin(filter_diarea)]
+            else:
+                   st.warning("gaada filter yang dipilih")
+        with kolsla2:
+            st.markdown("Division")
+            with st.expander("Division"):
+                divwo= ["Broadband","Lms","Fiberisasi"]
+                jumlahperdiv= df["DivisionName"].value_counts().to_dict()
+                divisiterpilih=[]
+                for c in divwo:
+                    itung= jumlahperdiv.get(c,0)
+                    if st.checkbox(f"{c} ({itung})", value= (c in st.session_state.divfilter), key=f"{c}_sla"):
+                        divisiterpilih.append(c)
+                st.session_state.divfilter= divisiterpilih
+        with kolsla3:
+            st.markdown("WO Type")
+            with st.expander("WO Type"):
+                pilihantipe= sorted(sladf["WorkOrderTypeName"].dropna().unique().tolist())if "WorkOrderTypeName" in sladf.columns else []
+                tipeyangdipilih=[]
+                for p in pilihantipe:
+                    defaultset= (p in st.session_state.tipefilter) if "tipefilter" in st.session_state else False
+                    countlabel= int(sladf["WorkOrderTypeName"].value_counts().get(p,0)) if "WorkOrderTypeName" in sladf.columns else 0
+                    if st.checkbox(f"{p}({countlabel})", value=defaultset, key=f"wotypesla_{p}"):
+                        tipeyangdipilih.append(p)
+                st.session_state.tipefilter=tipeyangdipilih
+        if tipeyangdipilih:
+            if "WorkOrderTypeName" in sladf.columns:
+                sladf= sladf[sladf["WorkOrderTypeName"].isin(tipeyangdipilih)].copy()
+            else:
+                st.warning("gaada wotypename di sladf")
+                sladf=pd.DataFrame()
+            if area=="City [Top 10]":
+                if "City" in sladf.columns:
+                    top10= sladf["City"].value_counts().nlargest(10).index.tolist()
+                    sladf= sladf[sladf["City"].isin(top10)].copy()
+                else:
+                    st.warning("kolom city gaditemuin") 
+                    
+                    
+                    
+            if (isinstance(exceldata, dict)and "HistoryWorkOrder" in exceldata):
+                stathistory= exceldata["HistoryWorkOrder"].copy()
+                stathistory.columns=stathistory.columns.astype(str).str.strip()
+                his_wo= "WorkOrderNumber" if "WorkOrderNumber" in stathistory.columns else None
+                his_stat= "WorkOrderStatusItem" if "WorkOrderStatusItem" in stathistory.columns else None
+                his_time= "Modified" if "Modified" in stathistory.columns else None
+                if all([his_wo, his_stat, his_time]):
+                    scannedwo=(sladf[["WorkOrderNumber","WorkOrderStatusItem"]].dropna().copy())
+                    scannedwo["WorkOrderNumber"]= scannedwo["WorkOrderNumber"].astype(str).str.strip()
+                    scannedwo["wonum_key"]= scannedwo["WorkOrderNumber"].str.title()
+                    scannedwo["statusnormalized"]= scannedwo["WorkOrderStatusItem"].astype(str).fillna("").str.strip().str.title()
+                    simpen_wonum_key= set(scannedwo["wonum_key"].unique())
+                    stathistory["wonum_key"]=(stathistory[his_wo].astype(str).fillna("").str.strip().str.title())
+                    his_subset= stathistory[stathistory["wonum_key"].isin(simpen_wonum_key)].copy()
+                    his_subset["WorkOrderNumber"]= his_subset[his_wo].astype(str).str.strip()
+                    his_subset["StatusWO"]= his_subset[his_stat].astype(str).str.strip()
+                    his_subset["StatusTimestamp"]= pd.to_datetime(his_subset[his_time],errors="coerce")
+                    his_subset= his_subset.dropna(subset=["WorkOrderNumber","StatusWO","StatusTimestamp"])
+                    
+                    if his_subset.empty:
+                        st.write("history stlh normalisasi kosong") 
+                    else:
+                        openonly= (his_subset[his_subset["StatusWO"].str.title() == "Open"].groupby("WorkOrderNumber", as_index= False).agg({"StatusTimestamp":"min"}).rename(columns={"StatusTimestamp":"open_c"}))
+                        others= (his_subset[his_subset["StatusWO"].str.title() != "Open"].groupby(["WorkOrderNumber","StatusWO"], as_index= False).agg({"StatusTimestamp":"max"}).rename(columns={"StatusTimestamp":"status_c"}))
+                        gabung= others.merge(openonly, on="WorkOrderNumber", how="left")
+                        showopen=openonly.copy()
+                        showopen["StatusWO"]= "Open"
+                        showopen["status_c"]= pd.NaT
+                        showopen["terpilih_c"]= showopen["open_c"]
+                        gabung["terpilih_c"]= gabung["status_c"]
+                        kol=["WorkOrderNumber","StatusWO","status_c","open_c","terpilih_c"]
+                        gabungsemua=pd.concat([showopen.loc[:, kol],gabung.loc[:, kol]], ignore_index=True, sort=False)
+                        def statusreportmap(a):
+                            if a in statusmap:
+                                return statusmap[a]
+                            return statusmap.get(str(a).title(), "OTHER")
+                        gabungsemua["StatusReport"]=  gabungsemua["StatusWO"].apply(statusreportmap)
+                        gabungsemua= gabungsemua[gabungsemua["StatusReport"].isin(["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED","CANCEL"])].copy()
+                        gabungsemua["wonum_key"]= gabungsemua["WorkOrderNumber"].astype(str).str.strip().str.title()                     
+                        gabungsemua["statusnormalized"]= gabungsemua["StatusWO"].astype(str).fillna("").str.strip().str.title()
+                        tergabung= gabungsemua.merge(scannedwo[["wonum_key", "statusnormalized"]], on="wonum_key", how="inner", suffixes=("", "wo"))
+                        tergabung=tergabung[tergabung["statusnormalized"]==tergabung["statusnormalizedwo"]].copy()
+
+                        if tergabung.empty:
+                            st.write("gaada yg match antara history stat dan stat excel")       
+                        else:
+                            tergabung["WorkOrderNumber"]= tergabung["WorkOrderNumber"].astype(str).str.strip().str.upper()
+                            sladf["WorkOrderNumber"]= sladf["WorkOrderNumber"].astype(str).str.strip().str.upper()
+                            tergabung= tergabung.merge(sladf[["WorkOrderNumber","uptime"]], on="WorkOrderNumber", how="left")
+                            tergabung["duration"]=((tergabung["uptime"]-tergabung["terpilih_c"]).dt.total_seconds()/3600)
+                            def slaoptions(hour):
+                                if hour<=16:
+                                    return "0-16 Jam"
+                                elif hour<24:
+                                    return "16.1-24 Jam"
+                                elif pd.isna(hour):
+                                    return None
+                                else:
+                                    return ">24 Jam"
+                        
+                            if "Region" not in sladf.columns:
+                                sladf["Region"]= sladf["SubRegion"].map(regionmap).fillna(sladf["SubRegion"])
+                            kol_area=  area if area != "City [All]" and area != "City [Top 10]" else "City"
+                            if kol_area in sladf.columns:
+                                tergabung= tergabung.merge(sladf[["WorkOrderNumber", kol_area]].drop_duplicates(), on="WorkOrderNumber", how="left")
+                            else:
+                                st.write("ganemu kol_area")
+                            tergabung["slaoptions"]=tergabung["duration"].apply(slaoptions)
+                            tergabung_valid= tergabung.dropna(subset=["slaoptions"]).copy()
+                            slagroup=( tergabung_valid.groupby([kol_area, "StatusReport", "slaoptions"]).agg({"WorkOrderNumber": "nunique"}).reset_index())
+                                                                                                               
+                            # st.dataframe(slagroup)
+                            # st.write(tergabung)
+                            if "WorkOrderNumber" in slagroup.columns:
+                                slagroup=slagroup.rename(columns={"WorkOrderNumber":"Count"})
+                            slagroup["Count"]= slagroup["Count"].astype(int)
+                            urutanstatus=["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED", "CANCEL"]
+                            urutansla=["0-16 Jam", "16.1-24 Jam", ">24 Jam"]
+                            pivot= slagroup.pivot_table(index=[kol_area,"slaoptions"],columns="StatusReport",values="Count",aggfunc="sum", fill_value=0)
+                            for u in urutanstatus:
+                                if u not in pivot.columns:
+                                    pivot[u]= 0
+                            pivot= pivot.reindex(columns=urutanstatus, fill_value=0)
+                            pivot["TOTAL"]= pivot.sum(axis=1)
+                            pivot.index.set_names([kol_area, "SLA"], inplace= True)
+                            areasum= pivot.groupby(level=0).sum()
+                            areasum.index= pd.MultiIndex.from_tuples([(area, "Total") for area in areasum.index], names=pivot.index.names)
+                            frameout= []
+                            for area in pivot.index.get_level_values(0).unique():
+                                baris_area= pivot.loc[area]
+                                baris_area= baris_area.reindex(urutansla, fill_value=0)
+                                baris_area.index.name= "SLA"
+                                baris_area.index= pd.MultiIndex.from_product([[area],baris_area.index], names= pivot.index.names)
+                                frameout.append(baris_area)
+                                frameout.append(areasum.loc[[area]])
+                            
+                            final= pd.concat(frameout)
+                            totalperstatus= final.loc[(slice(None),["Total"]),:]
+                            grandtotal= totalperstatus.sum(numeric_only=True).to_frame().T
+                            
+                            grandtotal.index= pd.MultiIndex.from_tuples([("Grand Total", "Total")], names=final.index.names)
+                            final=final.reset_index()
+                            final[kol_area]= final[kol_area].where(final["SLA"].isin(["0-16 Jam", "Grand Total"]), "")
+                           
+                            final= pd.concat([final,grandtotal])
+                            rows_shown_amt= min(len(final),20)
+                            row_height= 35
+                            kolomheader=pd.MultiIndex.from_tuples([("", kol_area),("", "SLA"),("ONGOING-NOW", "OPEN"),("ONGOING-NOW", "ONPROGRESS"),("ONGOING-NOW", "POSTPONE"),("OPEN-COMPLETE", "COMPLETE"),("", "INTEGRATION FAILED"), ("", "CANCEL"), ("", "TOTAL")], names=[None, None])
+                            statkolorder = [ kol_area,"SLA","OPEN","ONPROGRESS","POSTPONE","COMPLETE","INTEGRATION FAILED", "CANCEL","TOTAL"]
+                            finaltabel= final[statkolorder]
+                            finaltabel.columns =kolomheader
+                            def warnain_baris(baris_total):
+                                text=" ".join(map(str, baris_total.values))   
+                                if "Total" in text:
+                                    return ["background-color:orange "]*len(baris_total)
+                                return[""]*len(baris_total)
+                            styled= finaltabel.style.apply(warnain_baris, axis=1)
+                            def styletotal(dfrender):
+                                def barisnyadistyle(s):
+                                    txt = " ".join(map(str, s.values))
+                                    return ["background-color: orange" if "Total" in txt else ""] * len(s)
+                                return dfrender.style.apply(barisnyadistyle, axis=1)
+                            def rendersla(name, dfrender, height=420):
+                                st.subheader(name)
+                                st.dataframe(styletotal(dfrender), hide_index=True, height=height)
+                            
+                            tab_bb, tab_vendor = st.tabs(["Area", "Vendor"])
+                            st.write("## \n")
+                            with tab_bb:
+                                rendersla("Area", finaltabel, height=450)
+                               
+
+                            with tab_vendor:
+                                col_table, col_side = st.columns([4, 2])
+                                with col_table:
+                                    rendersla("Vendor", finaltabel, height=450)
+                                with col_side:
+                                    st.markdown("**Ringkasan Vendor**")
+                                    st.metric("Open", 5)
+                                    st.metric("On Progress", 9)
+
+                            # 3) (Opsional) Compare mode + Accordion deta
+
+                            
+
+                            # with dfsla_kanan:
+                            #     st.write("## LMS")
+                            #     st.dataframe(styled, hide_index= True, height=row_height*rows_shown_amt)
+                            # fiberisasi,filler, dfsla_vendor= st.columns([1,0.08,1])
+                            # with fiberisasi:
+                            #     st.write("## Fiberisasi")
+                            #     st.dataframe(styled, hide_index= True, height=row_height*rows_shown_amt)
+                            # with dfsla_vendor:
+                            #     st.write("## Vendor")
+                            #     st.dataframe(styled, hide_index= True, height=row_height*rows_shown_amt)
+
+                else:
+                    st.warning("data kolomny galengkap di sheet historyworkorder")
+                    
+            else:
+                st.warning ("ganemu historywo")
+                
+                
+            # st.write("## Status Duration & SLA Calculation")
+            st.write("## ")
+            st.caption("Click the button below to calculate the status duration, status SLA and export as Excel")  
+            exportbutton, fillerexpbutton1, fillerexpbutton2= st.columns([1, 2, 3])
+            with exportbutton:
+                if st.button("Export to Excel", type="primary", use_container_width= True):
+                    with st.spinner("Processing..."):
+                        out, filename= exportfile(uploaded)
+                    if out is not None:
+                        st.success("Export ready")
+                        st.download_button("Download Excel", data= out.getvalue(), file_name= filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True )
+                    else:
+                        st.warning("Export Failed")
+            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
