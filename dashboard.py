@@ -625,10 +625,11 @@ if uploaded is not None:
             
             "Cancel Work Order": "CANCEL",}
 
-            if isinstance(exceldata, dict) and "WorkOrder" in exceldata:
-                sladf= exceldata["WorkOrder"].copy()
-            elif"df" in locals():
+            
+            if "df" in locals():
                 sladf= df.copy()
+            elif isinstance(exceldata, dict) and "WorkOrder" in exceldata:
+                sladf= exceldata["WorkOrder"].copy()
             else:
                 sladf= pd.DataFrame()
             
@@ -750,36 +751,48 @@ if uploaded is not None:
                                 tergabung["duration"]=((tergabung["uptime"]-tergabung["terpilih_c"]).dt.total_seconds()/3600)
                                 completeonly= tergabung["StatusReport"]=="COMPLETE"
                                 tergabung.loc[completeonly, "duration"]= ((tergabung.loc[completeonly, "status_c"]-tergabung.loc[completeonly, "open_c"]).dt.total_seconds()/3600)
-                                def slaoptions(hour):
+                                def slaoptions_general(hour):
+                                    if hour<=4:
+                                        return "0-4 Jam"
+                                    elif hour<=6:
+                                        return "4-6 Jam"
+                                    elif hour<=12:
+                                        return "6-12 Jam"
+                                    elif pd.isna(hour):
+                                        return None
+                                    else:
+                                        return ">12 Jam"
+                                def slaoptions_broadband(hour):
                                     if hour<=6:
                                         return "0-6 Jam"
                                     elif hour<=12:
                                         return "6-12 Jam"
-                                    elif hour<=18:
-                                        return "12-18 Jam"
                                     elif hour<=24:
-                                        return "18-24 Jam"
-                                    elif pd.isna(hour):
-                                        return None
+                                        return "12-24 Jam"
                                     else:
                                         return ">24 Jam"
-                            
+                                broadband_only= (st.session_state.divfilter2==["Broadband"])
+                                if broadband_only:
+                                    tergabung["slaoptions"]= tergabung["duration"].apply(slaoptions_broadband)
+                                    urutansla= ["0-6 Jam", "6-12 Jam", "12-24 Jam", ">24 Jam"]
+                                else:
+                                    tergabung["slaoptions"]= tergabung["duration"].apply(slaoptions_general)
+                                    urutansla= ["0-4 Jam", "4-6 Jam", "6-12 Jam", ">12 Jam"]
+                                    
                                 kol_area=  area if area != "City [All]" and area != "City [Top 10]" else "City"
                                 if kol_area in sladf.columns:
                                     tergabung= tergabung.merge(sladf[["WorkOrderNumber", kol_area]].drop_duplicates(), on="WorkOrderNumber", how="left")
                                 else:
                                     st.write("ganemu kol_area")
-                                tergabung["slaoptions"]=tergabung["duration"].apply(slaoptions)
                                 tergabung_valid= tergabung.dropna(subset=["slaoptions"]).copy()
                                 slagroup=( tergabung_valid.groupby([kol_area, "StatusReport", "slaoptions"]).agg({"WorkOrderNumber": "nunique"}).reset_index())
                                                                                                                 
                                 # st.dataframe(slagroup)
-                                # st.write(tergabung)
+                                # st.write(tergabung)slaoptions
                                 if "WorkOrderNumber" in slagroup.columns:
                                     slagroup=slagroup.rename(columns={"WorkOrderNumber":"Count"})
                                 slagroup["Count"]= slagroup["Count"].astype(int)
                                 urutanstatus=["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED", "CANCEL"]
-                                urutansla=["0-6 Jam", "6-12 Jam", "12-18 Jam", "18-24 Jam", ">24 Jam"]
                                 pivot= slagroup.pivot_table(index=[kol_area,"slaoptions"],columns="StatusReport",values="Count",aggfunc="sum", fill_value=0)
                                 for u in urutanstatus:
                                     if u not in pivot.columns:
@@ -801,10 +814,12 @@ if uploaded is not None:
                                 final= pd.concat(frameout)
                                 totalperstatus= final.loc[(slice(None),["Total"]),:]
                                 grandtotal= totalperstatus.sum(numeric_only=True).to_frame().T
-                                grandtotal.index= pd.MultiIndex.from_tuples([("Grand Total", "Total")], names=final.index.names)
+                                grandtotal[kol_area]= "Grand Total"
+                                grandtotal["SLA"]= ""
+                                grandtotal=grandtotal[final.reset_index().columns]
                                 final=final.reset_index()
-                                final[kol_area]= final[kol_area].where(final["SLA"].isin(["0-6 Jam", "Grand Total"]), "")
-                                final= pd.concat([final,grandtotal])
+                                final[kol_area]= final[kol_area].where(final["SLA"].isin([urutansla[0], "Grand Total"]), "")
+                                final= pd.concat([final,grandtotal], ignore_index=True)
                                 rows_shown_amt= min(len(final),20)
                                 row_height= 35
                                 kolomheader=pd.MultiIndex.from_tuples([("", kol_area),("", "SLA"),("ONGOING-NOW", "OPEN"),("ONGOING-NOW", "ONPROGRESS"),("ONGOING-NOW", "POSTPONE"),("OPEN-COMPLETE", "COMPLETE"),("", "INTEGRATION FAILED"), ("", "CANCEL"), ("", "TOTAL")], names=[None, None])
@@ -844,8 +859,8 @@ if uploaded is not None:
                                                 region_count= len(regiondf)
                                                 with st.expander(f"{region} ({region_count})"):
                                                     
-                                                    for subregion in sorted(sladf["SubRegion"].dropna().unique()):
-                                                        subregiondf= sladf[sladf["SubRegion"]== subregion]
+                                                    for subregion in sorted(regiondf["SubRegion"].dropna().unique()):
+                                                        subregiondf= regiondf[regiondf["SubRegion"]== subregion]
                                                         subregion_count= len(subregiondf)
                                                         with st.expander(f"{subregion} ({subregion_count})"):
                                                             
@@ -854,15 +869,15 @@ if uploaded is not None:
                                                             bagidua=(len(city)+1)//2
                                                             
                                                             with citykiri:
-                                                                for c in city[:bagidua]:
+                                                                for e, c in enumerate(city[:bagidua], start=1):
                                                                     citydf= sladf[sladf["City"]== c]
                                                                     city_count= len(citydf)
-                                                                    st.write(f"{c} ({city_count})")
+                                                                    st.write(f"{e}. {c} ({city_count})")
                                                             with citykanan:
-                                                                for c in city[bagidua:]:
+                                                                for e, c in enumerate(city[bagidua:], start= bagidua+1):
                                                                     citydf= sladf[sladf["City"]== c]
                                                                     city_count= len(citydf)
-                                                                    st.write(f"{c} ({city_count})")
+                                                                    st.write(f"{e}. {c} ({city_count})")
                                         else:
                                             st.info("data ga lengkap")                           
                                                                     
@@ -878,15 +893,14 @@ if uploaded is not None:
                                                 subdf= vendorfeature[vendorfeature[loccol]==v]
                                                 for w, row in subdf.iterrows():st.write(f"{row['VendorName']} ({row['Amount']})")
                                 with tab_vendor2:
-                                    
+                                    st.write("## Vendor Pivot")
                                     vendorpivot=(tergabung.merge(sladf[["WorkOrderNumber","VendorName"]].drop_duplicates(), on="WorkOrderNumber", how="left").groupby(["VendorName","slaoptions", "StatusReport"]).agg({"WorkOrderNumber": "nunique"}).reset_index())
                                     vendorpivot= vendorpivot.pivot_table(index=["VendorName","slaoptions"], columns="StatusReport", values="WorkOrderNumber", aggfunc="sum", fill_value=0).reset_index()
                                     urutanstatus=["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED", "CANCEL"]
-                                    urutansla = ["0-6 Jam","6-12 Jam","12-18 Jam","18-24 Jam",">24 Jam"]
                                     for ur in urutanstatus:
                                         if ur not in vendorpivot.columns:
                                             vendorpivot[ur]=0
-                                    vendorpivot["TOTAL"]=vendorpivot[urutanstatus].sum(axis=1)
+                                    vendorpivot["Total"]=vendorpivot[urutanstatus].sum(axis=1)
                                     # statkolorder = [ kol_area,"SLA","OPEN","ONPROGRESS","POSTPONE","COMPLETE","INTEGRATION FAILED", "CANCEL","TOTAL"]
                                     frame=[]
                                     for v in vendorpivot["VendorName"].unique():
@@ -895,26 +909,35 @@ if uploaded is not None:
                                         baris_vendor= baris_vendor.set_index("slaoptions").reindex(urutansla, fill_value= 0).reset_index()
                                         baris_vendor["VendorName"]= v
                                         frame.append(baris_vendor)
-                                        total= baris_vendor[urutanstatus+["TOTAL"]].sum().to_dict()
-                                        total["slaoptions"]= "TOTAL"
+                                        total= baris_vendor[urutanstatus+["Total"]].sum().to_dict()
+                                        total["slaoptions"]= "Total"
                                         total["VendorName"]= v
                                         frame.append(pd.DataFrame([total]))
                                         
                                     finaldf= pd.concat(frame, ignore_index=True)
-                                    finaldf["slaoptions"]= pd.Categorical(finaldf["slaoptions"],categories=urutanstatus+["TOTAL"], ordered=True)
+                                    
+                                    finaldf["slaoptions"]= pd.Categorical(finaldf["slaoptions"],categories=urutanstatus+["Total"], ordered=True)
                                     finaldf=finaldf.sort_values(["VendorName", "slaoptions"])
                                     finaldf= pd.concat(frame, ignore_index=True)
+                                    
+                                    listvendor= sorted(finaldf["VendorName"].unique().tolist())
+                                    filtervendor= st.multiselect("Select Vendor", options= listvendor, default= listvendor, key="vendor_filter")
+                                    if filtervendor:
+                                        finaldf= finaldf[finaldf["VendorName"].isin(filtervendor)]
+                                    
                                     finaldf["VendorName"]= finaldf["VendorName"].mask(finaldf["VendorName"].duplicated(),"")
                                     barisheader=pd.MultiIndex.from_tuples([("", "Vendor"),("", "SLA"),("ONGOING-NOW", "OPEN"),("ONGOING-NOW", "ONPROGRESS"),("ONGOING-NOW", "POSTPONE"),("OPEN-COMPLETE", "COMPLETE"),("", "INTEGRATION FAILED"), ("", "CANCEL"), ("", "TOTAL")], names=[None, None])
-                                    finaldf=finaldf.reindex(columns=["VendorName", "slaoptions"]+urutanstatus+["TOTAL"])
+                                    finaldf=finaldf.reindex(columns=["VendorName", "slaoptions"]+urutanstatus+["Total"])
                                     finaldf.columns=barisheader
+                                    st.dataframe(styletotal(finaldf), hide_index=True, height= 900)
                                     
-                                    col_table, col_side = st.columns([3, 1])
-                                    with col_table:
-                                        st.write("## Vendor Pivot")
-                                        st.dataframe(finaldf, hide_index=True, height= 900)
-                                    with col_side:
-                                        st.write("##")
+                                    
+                                    # col_table, col_side = st.columns([3, 1])
+                                    # with col_table:
+                                    #     st.write("## Vendor Pivot")
+                                    #     st.dataframe(finaldf, hide_index=True, height= 900)
+                                    # with col_side:
+                                    #     st.write("##")
 
 
                                 # with tab_wo:
@@ -934,7 +957,6 @@ if uploaded is not None:
             else:
                 st.warning ("ganemu historywo")
                 
-            st.write("## ")
             st.caption("Click the button below to calculate the status duration, status SLA and export as Excel")  
             exportbutton, fillerexpbutton1, fillerexpbutton2= st.columns([1, 2, 3])
             with exportbutton:
