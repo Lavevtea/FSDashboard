@@ -4,12 +4,12 @@
 </div>
 
 <style>
-header[data-testid="stHeader"] {
-    display: none;
-}
-section.main > div {
-    padding: 0;
-}
+header[data-testid="stHeader"] {background: transparent;color: white !important; margin-top:-10px;}
+header[data-testid="stHeader"] * {color:white !important; }
+
+section[data-testid="stSidebar"]{background:linear-gradient(to bottom, #fd7c1f, #fd991f); color: white;}
+section[data-testid="stSidebar"] button {font-weight: bold !important; font-size: 30px;border: none;background:transparent;color: white;transition: all 0.3s ease-in-out;}
+section[data-testid="stSidebar"] button:hover {border: none;background:white; color: #fd7c1f; margin-bottom:0px;}
 
 #custom-header {
     position: fixed;
