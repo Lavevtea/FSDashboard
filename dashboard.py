@@ -8,8 +8,6 @@ import time
 import os
 import datetime as dt
 import textwrap
-from streamlit_option_menu import option_menu
-from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 
 
 st.set_page_config(layout="wide", page_title="FIELDSA DASHBOARD")
