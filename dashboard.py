@@ -514,12 +514,17 @@ if uploaded is not None:
             
             dfstat["StatusReport"]= dfstat["WorkOrderStatusItem"].map(statusmap).fillna("N/A")
             
-            locfilter2,statfilter=st.columns(2)
+            locfilter2,wotype2,division2,statfilter=st.columns(4)
             
             if "location2" not in st.session_state:
                 st.session_state.location2= "Region"
+            if "wotype2" not in st.session_state:
+                st.session_state.wotype2=["Troubleshoot","Activation"]
+            if "division2" not in st.session_state:
+                st.session_state.division2=["Broadband","Lms", "Fiberisasi"]
             if "status" not in st.session_state:
                 st.session_state.status= ["OPEN", "COMPLETE", "ONPROGRESS", "POSTPONE", "INTEGRATION FAILED", "CANCEL"]
+            
     
             with locfilter2:
                 loc= st.selectbox("Location", options=location, format_func= lambda x: "Sub Region" if x== "SubRegion" else x, key= "location2")
@@ -536,6 +541,43 @@ if uploaded is not None:
                     dfstat=dfstat[dfstat[loccol].astype(str).isin(filter_dalamarea)]
                 else:
                     st.warning("gaada filter yang dipilih")
+            
+
+            with wotype2:
+                st.markdown("WO Type")
+                with st.expander("WO Type"):
+                    tipewo= ['Troubleshoot', 'Activation']
+                    jumlahtipe= dfstat["WorkOrderTypeName"].value_counts().to_dict()
+                    
+                    tipeygdipilih=[]
+                    
+                    for r in tipewo:
+                        itungg= jumlahtipe.get(r,0)
+                        if st.checkbox(f"{r} ({itungg})", value= r in st.session_state.wotype2, key=f"{r}" ):
+                            tipeygdipilih.append(r) 
+                    st.session_state.tipefilter= tipeygdipilih              
+                    
+            with division2:
+                st.markdown("Division")
+                with st.expander("Division"):
+                    divwo= ["Broadband","Lms","Fiberisasi"]
+                    jumlahperdiv= dfstat["DivisionName"].value_counts().to_dict()
+                    divisiterpilih=[]
+                    for c in divwo:
+                        itung= jumlahperdiv.get(c,0)
+                        if st.checkbox(f"{c} ({itung})", value= c in st.session_state.division2, key=f"{c}"):
+                            divisiterpilih.append(c)
+                    st.session_state.divfilter= divisiterpilih
+    
+            if divisiterpilih:
+                dfstat= dfstat[dfstat["DivisionName"].isin(divisiterpilih)]
+            else:
+                st.warning("No division type chosen")
+                
+            if tipeygdipilih:
+                dfstat= dfstat[dfstat["WorkOrderTypeName"].isin(tipeygdipilih)]
+            else:
+                st.warning("No Workorder type chosen")    
 
             with statfilter:
                 st.markdown("Status")
@@ -568,13 +610,14 @@ if uploaded is not None:
                 )
                 
                 st.plotly_chart(statusbar, use_container_width=True)
-            
-                statussummary= statusgroup.pivot_table(index=loccol, columns= "StatusReport", values= "Count", fill_value=0).reset_index()
-                statussummary["Total"]= statussummary.loc[:, statussummary.columns != loccol].sum(axis=1)
+                status_order=["OPEN", "ONPROGRESS", "POSTPONE", "COMPLETE", "INTEGRATION FAILED", "CANCEL"]
+                statussummary= (statusgroup.pivot_table(index=loccol, columns= "StatusReport", values= "Count", fill_value=0).reindex(columns=status_order, fill_value=0).reset_index())
+                
+                statussummary["TOTAL"]= statussummary.loc[:, statussummary.columns != loccol].sum(axis=1)
                 totalperstatus= statussummary.loc[:, statussummary.columns != loccol].sum(axis=0)
                 totalbaris=pd.DataFrame([totalperstatus])
                 
-                totalbaris[loccol]= "Total"
+                totalbaris[loccol]= "TOTAL"
                 statussummary= pd.concat([statussummary, totalbaris], ignore_index= True)
                 statussummary.index= range(1, len(statussummary)+1)
 
