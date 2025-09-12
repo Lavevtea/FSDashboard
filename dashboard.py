@@ -591,6 +591,39 @@ if uploaded is not None:
         if menu_sidebar == "SLA Summary":
             st.divider()
             st.write("## Status Report SLA WorkOrder Summary")
+            # statusmap1={
+            # "Open": "OPEN",
+            
+            # "Assign To Technician": "ONPROGRESS",
+            # "Accept": "ONPROGRESS",
+            # "Travel": "ONPROGRESS",
+            # "Arrive": "ONPROGRESS",
+            # "On Progress": "ONPROGRESS",
+            # "Return": "ONPROGRESS",
+            # "Assign To Dispatch External": "ONPROGRESS",
+            # "Complete With Note Reject": "ONPROGRESS",
+            # "Revise": "ONPROGRESS",
+            # "Return By Technician": "ONPROGRESS",
+            # "Postpone Is Revised": "POSTPONE",
+            # "Return Is Revised": "ONPROGRESS",
+            # "Provisioning In Progress": "ONPROGRESS",
+            # "Provisioning Success": "ONPROGRESS",
+            
+            # "Complete With Note Approve": "COMPLETE",
+            # "Complete": "COMPLETE",
+            # "Done": "COMPLETE",
+            # "Work Order Confirmation Approve": "COMPLETE",
+            # "Complete With Note Request": "COMPLETE",
+            # "Posted To Ax Integration Success": "COMPLETE",
+            
+            # "Postpone Request": "POSTPONE",
+            # "Postpone": "POSTPONE",
+            
+            # "Sms Integration Failed": "INTEGRATION FAILED",
+            # "Posted To Ax Integration Failed": "INTEGRATION FAILED",
+            # "Provisioning Failed": "INTEGRATION FAILED",
+            
+            # "Cancel Work Order": "CANCEL",}
             statusmap1={
             "Open": "OPEN",
             
@@ -613,17 +646,18 @@ if uploaded is not None:
             "Complete": "COMPLETE",
             "Done": "COMPLETE",
             "Work Order Confirmation Approve": "COMPLETE",
-            "Complete With Note Request": "COMPLETE",
             "Posted To Ax Integration Success": "COMPLETE",
             
-            "Postpone Request": "POSTPONE",
             "Postpone": "POSTPONE",
             
             "Sms Integration Failed": "INTEGRATION FAILED",
             "Posted To Ax Integration Failed": "INTEGRATION FAILED",
             "Provisioning Failed": "INTEGRATION FAILED",
             
-            "Cancel Work Order": "CANCEL",}
+            "Complete With Note Request": "APPROVAL DISPATCHER FS",
+            "Postpone Request": "APPROVAL DISPATCHER FS",
+            
+            "Cancel Work Order": "CANCEL"}
 
             
             if "df" in locals():
@@ -736,7 +770,7 @@ if uploaded is not None:
                                     return statusmap1[a]
                                 return statusmap1.get(str(a).title(), "OTHER")
                             gabungsemua["StatusReport"]=  gabungsemua["StatusWO"].apply(statusreportmap)
-                            gabungsemua= gabungsemua[gabungsemua["StatusReport"].isin(["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED","CANCEL"])].copy()
+                            gabungsemua= gabungsemua[gabungsemua["StatusReport"].isin(["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED","APPROVAL DISPATCHER FS", "CANCEL"])].copy()
                             gabungsemua["wonum_key"]= gabungsemua["WorkOrderNumber"].astype(str).str.strip().str.title()                     
                             gabungsemua["statusnormalized"]= gabungsemua["StatusWO"].astype(str).fillna("").str.strip().str.title()
                             tergabung= gabungsemua.merge(scannedwo[["wonum_key", "statusnormalized"]], on="wonum_key", how="inner", suffixes=("", "wo"))
@@ -792,13 +826,14 @@ if uploaded is not None:
                                 if "WorkOrderNumber" in slagroup.columns:
                                     slagroup=slagroup.rename(columns={"WorkOrderNumber":"Count"})
                                 slagroup["Count"]= slagroup["Count"].astype(int)
-                                urutanstatus=["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED", "CANCEL"]
+                                urutanstatus=["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED", "APPROVAL DISPATCHER FS", "CANCEL"]
                                 pivot= slagroup.pivot_table(index=[kol_area,"slaoptions"],columns="StatusReport",values="Count",aggfunc="sum", fill_value=0)
                                 for u in urutanstatus:
                                     if u not in pivot.columns:
                                         pivot[u]= 0
                                 pivot= pivot.reindex(columns=urutanstatus, fill_value=0)
-                                pivot["TOTAL"]= pivot.sum(axis=1)
+                                pivot["TOTAL2"]= pivot[["OPEN", "ONPROGRESS", "POSTPONE"]].sum(axis=1)
+                                pivot["TOTAL"]= pivot[["OPEN", "ONPROGRESS", "POSTPONE", "COMPLETE", "INTEGRATION FAILED", "CANCEL"]].sum(axis=1)
                                 pivot.index.set_names([kol_area, "SLA"], inplace= True)
                                 areasum= pivot.groupby(level=0).sum()
                                 areasum.index= pd.MultiIndex.from_tuples([(area, "Total") for area in areasum.index], names=pivot.index.names)
@@ -822,8 +857,8 @@ if uploaded is not None:
                                 final= pd.concat([final,grandtotal], ignore_index=True)
                                 rows_shown_amt= min(len(final),20)
                                 row_height= 35
-                                kolomheader=pd.MultiIndex.from_tuples([("", kol_area),("", "SLA"),("ONGOING-NOW", "OPEN"),("ONGOING-NOW", "ONPROGRESS"),("ONGOING-NOW", "POSTPONE"),("OPEN-COMPLETE", "COMPLETE"),("", "INTEGRATION FAILED"), ("", "CANCEL"), ("", "TOTAL")], names=[None, None])
-                                statkolorder = [ kol_area,"SLA","OPEN","ONPROGRESS","POSTPONE","COMPLETE","INTEGRATION FAILED", "CANCEL","TOTAL"]
+                                kolomheader=pd.MultiIndex.from_tuples([("", kol_area),("", "SLA"),("ONGOING-NOW", "OPEN"),("ONGOING-NOW", "ONPROGRESS"),("ONGOING-NOW", "POSTPONE"),("ONGOING-NOW", "TOTAL"),("OPEN-COMPLETE", "COMPLETE"),("", "INTEGRATION FAILED"), ("COMP NOTE REQ & POSTPONE REQ", "APPROVAL DISPATCHER FS"),("", "CANCEL"), ("", "TOTAL")], names=[None, None])
+                                statkolorder = [ kol_area,"SLA","OPEN","ONPROGRESS","POSTPONE","TOTAL2","COMPLETE","INTEGRATION FAILED","APPROVAL DISPATCHER FS", "CANCEL","TOTAL"]
                                 finaltabel= final[statkolorder]
                                 finaltabel.columns =kolomheader
                                 def warnain_baris(baris_total):
@@ -896,11 +931,12 @@ if uploaded is not None:
                                     st.write("## Vendor Pivot")
                                     vendorpivot=(tergabung.merge(sladf[["WorkOrderNumber","VendorName"]].drop_duplicates(), on="WorkOrderNumber", how="left").groupby(["VendorName","slaoptions", "StatusReport"]).agg({"WorkOrderNumber": "nunique"}).reset_index())
                                     vendorpivot= vendorpivot.pivot_table(index=["VendorName","slaoptions"], columns="StatusReport", values="WorkOrderNumber", aggfunc="sum", fill_value=0).reset_index()
-                                    urutanstatus=["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED", "CANCEL"]
+                                    urutanstatus=["OPEN","ONPROGRESS","POSTPONE","COMPLETE", "INTEGRATION FAILED", "APPROVAL DISPATCHER FS", "CANCEL"]
                                     for ur in urutanstatus:
                                         if ur not in vendorpivot.columns:
                                             vendorpivot[ur]=0
-                                    vendorpivot["Total"]=vendorpivot[urutanstatus].sum(axis=1)
+                                    vendorpivot["TOTAL2"]=vendorpivot[["OPEN", "ONPROGRESS", "POSTPONE"]].sum(axis=1)
+                                    vendorpivot["Total"]=vendorpivot[["OPEN", "ONPROGRESS", "POSTPONE","COMPLETE", "INTEGRATION FAILED","APPROVAL DISPATCHER FS", "CANCEL"]].sum(axis=1)
                                     # statkolorder = [ kol_area,"SLA","OPEN","ONPROGRESS","POSTPONE","COMPLETE","INTEGRATION FAILED", "CANCEL","TOTAL"]
                                     frame=[]
                                     for v in vendorpivot["VendorName"].unique():
@@ -909,7 +945,7 @@ if uploaded is not None:
                                         baris_vendor= baris_vendor.set_index("slaoptions").reindex(urutansla, fill_value= 0).reset_index()
                                         baris_vendor["VendorName"]= v
                                         frame.append(baris_vendor)
-                                        total= baris_vendor[urutanstatus+["Total"]].sum().to_dict()
+                                        total= baris_vendor[urutanstatus+["TOTAL2","Total"]].sum().to_dict()
                                         total["slaoptions"]= "Total"
                                         total["VendorName"]= v
                                         frame.append(pd.DataFrame([total]))
@@ -919,15 +955,21 @@ if uploaded is not None:
                                     finaldf["slaoptions"]= pd.Categorical(finaldf["slaoptions"],categories=urutanstatus+["Total"], ordered=True)
                                     finaldf=finaldf.sort_values(["VendorName", "slaoptions"])
                                     finaldf= pd.concat(frame, ignore_index=True)
-                                    
                                     listvendor= sorted(finaldf["VendorName"].unique().tolist())
                                     filtervendor= st.multiselect("Select Vendor", options= listvendor, default= listvendor, key="vendor_filter")
                                     if filtervendor:
                                         finaldf= finaldf[finaldf["VendorName"].isin(filtervendor)]
+                                        
+                                    grand_total=finaldf.loc[finaldf["slaoptions"]=="Total", urutanstatus+["TOTAL2","Total"]].sum().to_dict()
+                                    grand_total["VendorName"]="Grand Total"
+                                    grand_total["slaoptions"]= ""
+                                    finaldf= pd.concat([finaldf, pd.DataFrame([grand_total])], ignore_index= True)
+                                    
+                            
                                     
                                     finaldf["VendorName"]= finaldf["VendorName"].mask(finaldf["VendorName"].duplicated(),"")
-                                    barisheader=pd.MultiIndex.from_tuples([("", "Vendor"),("", "SLA"),("ONGOING-NOW", "OPEN"),("ONGOING-NOW", "ONPROGRESS"),("ONGOING-NOW", "POSTPONE"),("OPEN-COMPLETE", "COMPLETE"),("", "INTEGRATION FAILED"), ("", "CANCEL"), ("", "TOTAL")], names=[None, None])
-                                    finaldf=finaldf.reindex(columns=["VendorName", "slaoptions"]+urutanstatus+["Total"])
+                                    barisheader=pd.MultiIndex.from_tuples([("", "Vendor"),("", "SLA"),("ONGOING-NOW", "OPEN"),("ONGOING-NOW", "ONPROGRESS"),("ONGOING-NOW", "POSTPONE"),("ONGOING-NOW", "TOTAL"),("OPEN-COMPLETE", "COMPLETE"),("", "INTEGRATION FAILED"),("COMP NOTE REQ & POSTPONE REQ", "APPROVAL DISPATCHER FS"), ("", "CANCEL"), ("", "TOTAL")], names=[None, None])
+                                    finaldf=finaldf.reindex(columns=["VendorName", "slaoptions"]+urutanstatus[:3]+["TOTAL2"]+urutanstatus[3:]+["Total"])
                                     finaldf.columns=barisheader
                                     st.dataframe(styletotal(finaldf), hide_index=True, height= 900)
                                     
