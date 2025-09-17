@@ -904,17 +904,26 @@ if uploaded is not None:
                                 statkolorder = [ kol_area,"SLA","OPEN","ONPROGRESS","POSTPONE","TOTAL2","COMPLETE","INTEGRATION FAILED","APPROVAL DISPATCHER FS", "CANCEL","TOTAL"]
                                 finaltabel= final[statkolorder]
                                 finaltabel.columns =kolomheader
-                                def warnain_baris(baris_total):
-                                    text=" ".join(map(str, baris_total.values))   
-                                    if "Total" in text:
-                                        return ["background-color:orange "]*len(baris_total)
-                                    return[""]*len(baris_total)
-                                styled= finaltabel.style.apply(warnain_baris, axis=1)
+                                # def warnain_baris(baris_total):
+                                #     text=" ".join(map(str, baris_total.values))   
+                                #     if "Total" in text:
+                                #         return ["background-color:orange "]*len(baris_total)
+                                #     return[""]*len(baris_total)
+                                
+                                # def warnain_kolom(kolom_total):
+                                #     if kolom_total.name in ["TOTAL2","TOTAL"]:
+                                #         return ["background-color: orange"]*len(kolom_total)
+                                #     return[""]*len(kolom_total)
+                                # styled= finaltabel.style.apply(warnain_baris, axis=1).apply(warnain_kolom, axis=0)
                                 def styletotal(dfrender):
-                                    def barisnyadistyle(s):
-                                        txt = " ".join(map(str, s.values))
-                                        return ["background-color: orange" if "Total" in txt else ""] * len(s)
-                                    return dfrender.style.apply(barisnyadistyle, axis=1)
+                                    def warnain_baris(total):
+                                        text=" ".join(map(str, total.values))   
+                                        return ["background-color:rgb(240, 242, 246 " if "Total" in text else ""]*len(total)
+                                  
+                                    def warnain_kolom(total):
+                                        return ["background-color: rgb(240, 242, 246)" if total.name[1] in ["TOTAL2","TOTAL"] else ""]*len(total)
+                                    return(dfrender.style.apply(warnain_baris, axis=1).apply(warnain_kolom, axis=0))
+                                    
                                 def rendersla(name, dfrender, height=420):
                                     st.subheader(name)
                                     st.dataframe(styletotal(dfrender), hide_index=True, height=height)
