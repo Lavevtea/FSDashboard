@@ -1583,7 +1583,7 @@ if uploaded is not None:
                                 
                                 
                                 
-                                
+                            
 #     if menu_sidebar == "Data Comparation":
 #             st.divider()
 #             st.write("## Data Comparation")
