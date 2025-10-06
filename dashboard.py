@@ -22,13 +22,17 @@ if st.sidebar.button("WorkOrder Chart"):
     st.session_state.menu_sidebar = "WorkOrder Chart"
 if st.sidebar.button("Status Chart"):
     st.session_state.menu_sidebar = "Status Chart"
-# if st.sidebar.button("Data Comparation"):
-#     st.session_state.menu_sidebar = "Data Comparation"
 if st.sidebar.button("SLA Summary"):
     st.session_state.menu_sidebar = "SLA Summary"
+if st.sidebar.button("Data Comparation"):
+    st.session_state.menu_sidebar = "Data Comparation"
+if st.sidebar.button("Merge Files"):
+    st.session_state.menu_sidebar = "Merge Files"
 menu_sidebar= st.session_state.menu_sidebar
 
- 
+
+
+
 uploaded=st.file_uploader("Upload Excel File", type=["xlsx", "csv"]) 
 
 if uploaded is not None:
@@ -104,15 +108,15 @@ if uploaded is not None:
         dfcalc= pd.read_excel(xcel, sheet_name="HistoryWorkOrder")
         dfcalc.columns= dfcalc.columns.str.strip()
         dfcalc = dfcalc.rename(columns={
-            'WorkOrderNumber':'WONumber',
+            'WorkOrderNumber':'WO Fieldsa',
             'WorkOrderStatusItem' : 'status',
             'Modified' : 'timestamp'  
         })
 
         dfcalc['status'] = dfcalc['status'].astype(str).str.strip()
         dfcalc['timestamp'] = pd.to_datetime(dfcalc['timestamp'])
-        dfcalc= dfcalc.dropna(subset=['WONumber', 'timestamp'])
-        dfcalc= dfcalc.sort_values(['WONumber', 'timestamp'])
+        dfcalc= dfcalc.dropna(subset=['WO Fieldsa', 'timestamp'])
+        dfcalc= dfcalc.sort_values(['WO Fieldsa', 'timestamp'])
 
         urutanstatus=[
             'Open',
@@ -135,13 +139,13 @@ if uploaded is not None:
         hasil= []
         statusdur=[]
 
-        for wo, group in dfcalc.groupby('WONumber'):
+        for wo, group in dfcalc.groupby('WO Fieldsa'):
             statusnump= group['status'].to_numpy()
             timenump= group['timestamp'].to_numpy()
-            baris= {'WONumber': wo}
+            baris= {'WO Fieldsa': wo}
             timestemp={}
             lasttime=pd.Timestamp.min
-            baris['Anomali']= 'Abnormal' if pd.Series(statusnump).duplicated().any() else 'Normal'
+            # baris['Anomali']= 'Abnormal' if pd.Series(statusnump).duplicated().any() else 'Normal'
 
             for stat in urutanstatus:
                 filtertimenstat= (statusnump==stat)&(timenump>lasttime)
@@ -168,7 +172,7 @@ if uploaded is not None:
             d5 = durasi('Done', 'Complete', timestemp)
             
             statusdur.append({
-                'WONumber': wo, 
+                'WO Fieldsa': wo, 
                 'Open - Assign to dispatch external': d1,
                 'SLA Open-Dispatch External': klasifikasi(d1, "short"),
                 'Assign to dispatch external - Assign to technician': d2,
@@ -181,13 +185,13 @@ if uploaded is not None:
                 'SLA Done-Complete': klasifikasi(d5, "short")
             })
 
-        final=pd.DataFrame(hasil).merge(pd.DataFrame(statusdur), on='WONumber', how='left' )
+        final=pd.DataFrame(hasil).merge(pd.DataFrame(statusdur), on='WO Fieldsa', how='left' )
 
         addcols= [ 'WorkOrderNumber', 'ReferenceCode', 'WorkOrderTypeName', 'DivisionName', 'WorkOrderStatusItem', 'Reason',
             'CustomerId', 'CustomerName', 'Cid', 'CircuitId', 'EndCustomerName', 'SubRegion',
             'City', 'DeviceAllocation', 'VendorName', 'DispatcherName', 'TechnicianName']
 
-        df2= pd.read_excel(xcel, sheet_name='WorkOrder', usecols=addcols).rename(columns={'WorkOrderNumber':'WONumber'}).reset_index(drop=True)
+        df2= pd.read_excel(xcel, sheet_name='WorkOrder', usecols=addcols).rename(columns={'WorkOrderNumber':'WO Fieldsa'}).reset_index(drop=True)
         df2['SubRegion'] =df2['SubRegion'].astype(str).str.strip().str.title()
         df2['WorkOrderStatusItem']= df2['WorkOrderStatusItem'].astype(str).str.strip().str.title()
 
@@ -206,35 +210,41 @@ if uploaded is not None:
         }
 
         statusreportmap= {
-            'Open':'OPEN',
-            'Assign To Dispatch External':'ONPROGRESS',
-            'Complete With Note Approve':'COMPLETE',
-            'Assign To Technician':'ONPROGRESS',
-            'Complete':'COMPLETE',
-            'Accept':'ONPROGRESS',
-            'Travel' :'ONPROGRESS',
-            'Arrive':'ONPROGRESS',
-            'On Progress':'ONPROGRESS',
-            'Return':'ONPROGRESS',
-            'Done':'COMPLETE',
-            'Work Order Confirmation Approve':'COMPLETE',
-            'Complete With Note Request':'COMPLETE',
-            'Complete With Note Reject':'ONPROGRESS',
-            'Postpone Request':'POSTPONE',
-            'Postpone':'POSTPONE',
-            'Sms Integration Failed':'INTEGRATION FAILED',
-            'Revise':'ONPROGRESS',
-            'Return By Technician':'ONPROGRESS',
-            'Postpone Is Revised':'POSTPONE',
-            'Return Is revised':'ONPROGRESS',
-            'Provisioning In Progress':'ONPROGRESS',
-            'Provisioning Success':'ONPROGRESS',
-            'Posted To Ax Integration Failed':'INTEGRATION FAILED',
-            'Provisioning Failed':'INTEGRATION FAILED',
-            'Cancel Work Order':'CANCEL',
-            'Posted To Ax Integration Success':'COMPLETE'
-        }
-        final= final.merge(df2, on='WONumber', how='left')
+            "Open": "OPEN",
+            
+            "Assign To Technician": "ONPROGRESS",
+            "Accept": "ONPROGRESS",
+            "Travel": "ONPROGRESS",
+            "Arrive": "ONPROGRESS",
+            "On Progress": "ONPROGRESS",
+            "Return": "ONPROGRESS",
+            "Assign To Dispatch External": "ONPROGRESS",
+            "Complete With Note Reject": "ONPROGRESS",
+            "Revise": "ONPROGRESS",
+            "Return By Technician": "ONPROGRESS",
+            "Postpone Is Revised": "POSTPONE",
+            "Return Is Revised": "ONPROGRESS",
+            "Provisioning In Progress": "ONPROGRESS",
+            "Provisioning Success": "ONPROGRESS",
+            
+            "Complete With Note Approve": "COMPLETE",
+            "Complete": "COMPLETE",
+            "Done": "COMPLETE",
+            "Work Order Confirmation Approve": "COMPLETE",
+            "Posted To Ax Integration Success": "COMPLETE",
+            
+            "Postpone": "POSTPONE",
+            
+            "Sms Integration Failed": "INTEGRATION FAILED",
+            "Posted To Ax Integration Failed": "INTEGRATION FAILED",
+            "Provisioning Failed": "INTEGRATION FAILED",
+            
+            "Complete With Note Request": "APPROVAL DISPATCHER FS",
+            "Postpone Request": "APPROVAL DISPATCHER FS",
+            
+            "Cancel Work Order": "CANCEL"}
+        
+        final= final.merge(df2, on='WO Fieldsa', how='left')
         final['Region']= final['SubRegion'].map(regionmap).fillna('N/A')
         final['StatusReport']= final['WorkOrderStatusItem'].map(statusreportmap).fillna('N/A')
         subregionindex= final.columns.get_loc('SubRegion')
@@ -242,33 +252,39 @@ if uploaded is not None:
         wostatusindex= final.columns.get_loc('WorkOrderStatusItem')
         final.insert(wostatusindex, 'StatusReport', final.pop('StatusReport'))
 
-        df3= pd.read_excel(xcel, sheet_name='Rca', usecols=['WorkOrderNumber', 'UpTime']).rename(columns={'WorkOrderNumber':'WONumber'}).reset_index(drop=True)
-        final= final.merge(df3, on='WONumber', how='left')
+        df3= pd.read_excel(xcel, sheet_name='Rca', usecols=['WorkOrderNumber', 'UpTime']).rename(columns={'WorkOrderNumber':'WO Fieldsa'}).reset_index(drop=True)
+        final= final.merge(df3, on='WO Fieldsa', how='left')
         final['UpTime'] = final['UpTime'].fillna('N/A')
 
 
 
         urutanstatuswo= [
-            'WONumber','Anomali','Open','Assign to dispatch external','Assign to technician','Accept',
+            'WO Fieldsa','ReferenceCode','WorkOrderTypeName','DivisionName','CustomerId',
+            'CustomerName','Cid','CircuitId','EndCustomerName','Region','SubRegion','City','DeviceAllocation',
+            'VendorName','DispatcherName','TechnicianName','UpTime','Open','Assign to dispatch external','Assign to technician','Accept',
             'Travel','Arrive','On Progress','Done','Work Order Confirmation Approve','Complete',
             'Complete with note approve','Complete with note request','Complete with note reject',
             'Postpone Request','Postpone is Revised','Postpone','SMS Integration Failed','Return',
             'Return by Technician','Revise','Return is revised','Provisioning In Progress','Provisioning Success',
             'Posted to AX Integration Failed','Posted to AX Integration Success','Provisioning Failed','Cancel Work Order',
-            'ReferenceCode','WorkOrderTypeName','DivisionName','StatusReport','WorkOrderStatusItem','Reason','CustomerId',
-            'CustomerName','Cid','CircuitId','EndCustomerName','Region','SubRegion','City','DeviceAllocation',
-            'VendorName','DispatcherName','TechnicianName','UpTime',
             'Open - Assign to dispatch external','SLA Open-Dispatch External',
             'Assign to dispatch external - Assign to technician','SLA Dispatch External -Technician',
             'Assign to technician - Accept','SLA Technician-Accept','Accept - Done','SLA Accept-Done',
-            'Done - Complete','SLA Done-Complete'
+            'Done - Complete','SLA Done-Complete','WorkOrderStatusItem','StatusReport','Reason'
         ]
 
         final= final[[col for col in urutanstatuswo if col in final.columns]]
-
+        # st.write("nyanayana")
+        # st.dataframe(final.head(12))
+        # st.write("adsf")
+        # st.write(list(final.columns))
         buffer= BytesIO()
+        st.session_state.finalcopy = final.copy()
         with pd.ExcelWriter(buffer, engine= "xlsxwriter") as writer:
             final.to_excel(writer, index= False, sheet_name= "SLA")
+            df_status= pd.DataFrame(list(statusreportmap.items()), columns=["Status", "Klasifikasi Status"])
+            df_status.to_excel(writer, index=False, sheet_name="KeteranganStatus")
+            
         buffer.seek(0)
         suggestname = f"Dashboard_FIELDSA_{pd.Timestamp.now():%Y%m%d_%H%M%S}.xlsx"
         return buffer, suggestname
@@ -939,13 +955,7 @@ if uploaded is not None:
                                         dfrender = dfrender[dfrender.iloc[:,0].isin(selected)]  
                                     st.subheader(name)
                                     st.dataframe(styletotal(dfrender), hide_index=True, height=height)
-                                # warna_bar= {"OPEN":FF2305,
-                                #             "ONPROGRESS":"FFAF1A",
-                                #             "POSTPONE": "FFAF1A",
-                                #             "COMPLETE": "009E41",
-                                #             "INTEGRATION FAILED",
-                                #             "APPROVAL DISPATCHER FS",
-                                #             "CANCEL"}
+                            
                                 regionbar= (tergabung_valid.groupby(["Region", "StatusReport"]).size().reset_index(name="Count"))
                                 chart_region= px.bar(regionbar, x="Region", y="Count", color="StatusReport", barmode="stack", title="Status Chart per Region", labels={"Region":"Region","Count":"Jumlah"})
                                 
@@ -982,12 +992,6 @@ if uploaded is not None:
 
 
 
-
-
-        # if menu_sidebar == "Data Comparation":
-        #     st.divider()
-        #     st.write("## Data Comparation")
-        #     st.write("Masih kosong :)")
 
 
 
@@ -1463,93 +1467,9 @@ if uploaded is not None:
                                     barisheader=pd.MultiIndex.from_tuples([("", "Vendor"),("", "SLA"),("ONGOING-NOW", "OPEN"),("ONGOING-NOW", "ONPROGRESS"),("ONGOING-NOW", "POSTPONE"),("ONGOING-NOW", "TOTAL"),("OPEN-COMPLETE", "COMPLETE"),("", "INTEGRATION FAILED"),("COMP NOTE REQ & POSTPONE REQ", "APPROVAL DISPATCHER FS"), ("", "CANCEL"), ("", "TOTAL")], names=[None, None])
                                     finaldf=finaldf.reindex(columns=["VendorName", "slaoptions"]+urutanstatus[:3]+["TOTAL2"]+urutanstatus[3:]+["Total"])
                                     finaldf.columns=barisheader
-                                    st.dataframe(styletotal(finaldf), hide_index=True, height= 900)
-
-                                # with tab_wo:
-                                #     import streamlit as st
-                                #     import pandas as pd
-                                #     from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-
-                                #     # === Dummy data mirip finaldf ===
-                                #     data = {
-                                #         "Region": ["Central", "Central", "West"],
-                                #         "SLA": ["0-4 Jam", "4-6 Jam", "0-4 Jam"],
-                                #         "OPEN": [3, 1, 0],
-                                #         "ONPROGRESS": [2, 0, 5],
-                                #         "COMPLETE": [1256, 947, 321],
-                                #     }
-                                #     finaldf = pd.DataFrame(data)
-
-                                #     # === Dummy Work Orders (WO) ===
-                                #     wo_data = {
-                                #         ("Central", "0-4 Jam", "OPEN"): ["WO-CEN-0001", "WO-CEN-0002", "WO-CEN-0003"],
-                                #         ("Central", "0-4 Jam", "ONPROGRESS"): ["WO-CEN-0101", "WO-CEN-0102"],
-                                #         ("Central", "0-4 Jam", "COMPLETE"): ["WO-CEN-1001", "WO-CEN-1002", "WO-CEN-1003"],
-
-                                #         ("Central", "4-6 Jam", "OPEN"): ["WO-CEN-2001"],
-                                #         ("Central", "4-6 Jam", "COMPLETE"): ["WO-CEN-2101", "WO-CEN-2102"],
-
-                                #         ("West", "0-4 Jam", "ONPROGRESS"): ["WO-WST-0101", "WO-WST-0102", "WO-WST-0103", "WO-WST-0104", "WO-WST-0105"],
-                                #         ("West", "0-4 Jam", "COMPLETE"): ["WO-WST-1001", "WO-WST-1002"],
-                                #     }
-
-                                #     # === Custom CSS garis tabel ===
-                                #     st.markdown(
-                                #         """
-                                #         <style>
-                                #         .ag-theme-streamlit .ag-root-wrapper {
-                                #             border: 1px solid #666; /* garis luar tabel */
-                                #         }
-                                #         .ag-theme-streamlit .ag-cell {
-                                #             border-right: 1px solid #ccc; /* garis vertikal */
-                                #             cursor: pointer; /* biar keliatan bisa diklik */
-                                #         }
-                                #         .ag-theme-streamlit .ag-row {
-                                #             border-bottom: 1px solid #ccc; /* garis horizontal */
-                                #         }
-                                #         </style>
-                                #         """,
-                                #         unsafe_allow_html=True
-                                #     )
-
-                                #     st.write("## Work Order Summary")
-
-                                #     # === Grid options ===
-                                #     gb = GridOptionsBuilder.from_dataframe(finaldf)
-                                #     gb.configure_default_column(resizable=True, filter=True, sortable=True)
-                                #     gb.configure_selection("single", use_checkbox=False)  # pilih 1 row
-                                #     grid_options = gb.build()
-
-                                #     # === Render tabel ===
-                                #     grid_response = AgGrid(
-                                #         finaldf,
-                                #         gridOptions=grid_options,
-                                #         theme="streamlit",
-                                #         fit_columns_on_grid_load=True,
-                                #         update_mode=GridUpdateMode.SELECTION_CHANGED,
-                                #         allow_unsafe_jscode=True,
-                                #         enable_enterprise_modules=False,
-                                #         height=250,
-                                #     )
-
-                                    # col_table, col_side = st.columns([3, 1])
-                                    # with col_table:
-                                    #     st.write("## Vendor Pivot")
-                                    #     st.dataframe(finaldf, hide_index=True, height= 900)
-                                    # with col_side:
-                                    #     st.write("##")
-
-
-                                # with tab_wo:
-                                #     col_table, col_side = st.columns([3, 2])
-
-                                #     with col_table:
-                                        
-                                #         st.subheader("Detail / Drilldown")
-                                        
-                                #     with col_side:
-                                #         st.write("bagian kanan")
-
+                                    
+                                    
+              
 
                 else:
                     st.warning("data kolomny galengkap di sheet historyworkorder")
@@ -1557,18 +1477,142 @@ if uploaded is not None:
             else:
                 st.warning ("ganemu historywo")
                 
+            dataframesla= tergabung_valid.copy()
+            if uploaded is not None:
+                out, filename= exportfile(uploaded)
             st.caption("Click the button below to calculate the status duration, status SLA and export as Excel")  
-            exportbutton, fillerexpbutton1, fillerexpbutton2= st.columns([1, 2, 3])
-            with exportbutton:
-                if st.button("Export to Excel", type="primary", use_container_width= True):
-                    with st.spinner("Processing..."):
-                        out, filename= exportfile(uploaded)
-                    if out is not None:
-                        st.success("Export ready")
-                        st.download_button("Download Excel", data= out.getvalue(), file_name= filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True )
-                    else:
-                        st.warning("Export Failed")           
+            # exportbutton, fillerexpbutton1, fillerexpbutton2= st.columns([1, 2, 3])
+            # with exportbutton:
+            if st.button("Export to Excel", type="primary", use_container_width= True):
+
+                with st.spinner("Processing..."):
+                    
+                    if "finalcopy" in st.session_state:
+                        final2= st.session_state.finalcopy.copy()
+                        if{"WorkOrderNumber", "StatusReport"}.issubset(dataframesla.columns):
+                            temp_df= dataframesla[["WorkOrderNumber", "StatusReport", "duration"]].copy()
+                            temp_df= temp_df.rename(columns={"WorkOrderNumber":"WO Fieldsa"})
+                            final2= final2.merge(temp_df,  on=["WO Fieldsa", "StatusReport"], how="left")
                             
+                            statusreportmap={
+                                "Open": "OPEN",
+                                "Assign To Technician": "ONPROGRESS",
+                                "Accept": "ONPROGRESS",
+                                "Travel": "ONPROGRESS",
+                                "Arrive": "ONPROGRESS",
+                                "On Progress": "ONPROGRESS",
+                                "Return": "ONPROGRESS",
+                                "Assign To Dispatch External": "ONPROGRESS",
+                                "Complete With Note Reject": "ONPROGRESS",
+                                "Revise": "ONPROGRESS",
+                                "Return By Technician": "ONPROGRESS",
+                                "Postpone Is Revised": "POSTPONE",
+                                "Return Is Revised": "ONPROGRESS",
+                                "Provisioning In Progress": "ONPROGRESS",
+                                "Provisioning Success": "ONPROGRESS",
+                                
+                                "Complete With Note Approve": "COMPLETE",
+                                "Complete": "COMPLETE",
+                                "Done": "COMPLETE",
+                                "Work Order Confirmation Approve": "COMPLETE",
+                                "Posted To Ax Integration Success": "COMPLETE",
+                                
+                                "Postpone": "POSTPONE",
+                                
+                                "Sms Integration Failed": "INTEGRATION FAILED",
+                                "Posted To Ax Integration Failed": "INTEGRATION FAILED",
+                                "Provisioning Failed": "INTEGRATION FAILED",
+                                
+                                "Complete With Note Request": "APPROVAL DISPATCHER FS",
+                                "Postpone Request": "APPROVAL DISPATCHER FS",
+                                
+                                "Cancel Work Order": "CANCEL"}
+                            
+                            def slaoptions_general(hour):
+                                if pd.isna(hour):
+                                    return None
+                                if hour <= 4:
+                                    return "0-4 Jam"
+                                elif hour <= 6:
+                                    return "4-6 Jam"
+                                elif hour <= 12:
+                                    return "6-12 Jam"
+                                else:
+                                    return ">12 Jam"
+
+                            def slaoptions_broadband(hour):
+                                if pd.isna(hour):
+                                    return None
+                                if hour <= 6:
+                                    return "0-6 Jam"
+                                elif hour <= 12:
+                                    return "6-12 Jam"
+                                elif hour <= 24:
+                                    return "12-24 Jam"
+                                else:
+                                    return ">24 Jam"
+                                
+                            def get_sla(row):
+                                div= str(row["DivisionName"])
+                                dur_sla= row["duration"]
+                                if "Broadband" in div:
+                                    return slaoptions_broadband(dur_sla)
+                                elif "LMS" in div or "Fiberisasi" in div:
+                                    return slaoptions_general(dur_sla)
+                                else:
+                                    return None
+                            final2["SLA Summary"]= final2.apply(get_sla, axis=1)
+                            final2 = final2.drop(columns=["duration"])
+                            # st.write("liat")
+                            # st.dataframe(final2)
+                            
+                            buffer= BytesIO()
+                            with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+                                final2.to_excel(writer, index=False, sheet_name= "SLA")
+                                df_status= pd.DataFrame(list(statusreportmap.items()), columns=["Status", "Klasifikasi Status"])
+                                df_status.to_excel(writer, index=False, sheet_name= "KeteranganStatus")
+                            buffer.seek(0)
+                            nameformat = f"Dashboard_FIELDSA_{pd.Timestamp.now():%Y%m%d_%H%M%S}.xlsx"
+                            
+                            st.success("Export ready")
+                            st.download_button("Download Excel", data= buffer.getvalue(), file_name=nameformat, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True )
+                        else:
+                            st.write("gabisa")
+                
+                                
+                                
+                                
+                                
+                                
+#     if menu_sidebar == "Data Comparation":
+#             st.divider()
+#             st.write("## Data Comparation")
+#             st.write("Masih kosong :)")
+    
+    
+    
+
+
+    
+# if menu_sidebar == "Merge Files":
+#             st.divider()
+#             st.write("## Merge Fieldsa Excel Files")
+#             files_uploader= st.file_uploader("Upload Excel File to merge (min. 2)", type=["xlsx"], accept_multiple_files=True)
+
+
+
+          
+                            
+         
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+    
                             
                             
                             
