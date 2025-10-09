@@ -24,8 +24,8 @@ if st.sidebar.button("Status Chart"):
     st.session_state.menu_sidebar = "Status Chart"
 if st.sidebar.button("SLA Summary"):
     st.session_state.menu_sidebar = "SLA Summary"
-if st.sidebar.button("Data Comparation"):
-    st.session_state.menu_sidebar = "Data Comparation"
+# if st.sidebar.button("Data Comparation"):
+#     st.session_state.menu_sidebar = "Data Comparation"
 if st.sidebar.button("Merge Files"):
     st.session_state.menu_sidebar = "Merge Files"
 menu_sidebar= st.session_state.menu_sidebar
@@ -378,7 +378,7 @@ if uploaded is not None:
             if "divfilter" not in st.session_state:
                 st.session_state.divfilter= ["Broadband", "Lms", "Fiberisasi"]
             if "tipefilter" not in st.session_state:
-                st.session_state.tipefilter= ["Troubleshoot", "Activation"]
+                st.session_state.tipefilter= ["Troubleshoot","Activation", "Dismantle", "Relocation Activation", "Relocation Dismantle", "Change Service"]
             
             
             with filter1:
@@ -402,7 +402,7 @@ if uploaded is not None:
             with filter2:
                 st.markdown("WO Type")
                 with st.expander("WO Type"):
-                    tipewo= ['Troubleshoot', 'Activation']
+                    tipewo= ["Troubleshoot","Activation", "Dismantle", "Relocation Activation", "Relocation Dismantle", "Change Service"]
                     jumlahtipe= df["WorkOrderTypeName"].value_counts().to_dict()
                     
                     tipeygdipilih=[]
@@ -559,7 +559,7 @@ if uploaded is not None:
             if "location2" not in st.session_state:
                 st.session_state.location2= "Region"
             if "wotype2" not in st.session_state:
-                st.session_state.wotype2=["Troubleshoot","Activation"]
+                st.session_state.wotype2=["Troubleshoot","Activation", "Dismantle", "Relocation Activation", "Relocation Dismantle", "Change Service"]
             if "division2" not in st.session_state:
                 st.session_state.division2=["Broadband","Lms", "Fiberisasi"]
             if "stat" not in st.session_state:
@@ -586,7 +586,7 @@ if uploaded is not None:
             with wotype2:
                 st.markdown("WO Type")
                 with st.expander("WO Type"):
-                    tipewo= ['Troubleshoot', 'Activation']
+                    tipewo= ["Troubleshoot","Activation", "Dismantle", "Relocation Activation", "Relocation Dismantle", "Change Service"]
                     jumlahtipe= dfstat["WorkOrderTypeName"].value_counts().to_dict()
                     
                     tipeygdipilih=[]
@@ -1053,7 +1053,7 @@ if uploaded is not None:
             if "kolsla1" not in st.session_state:
                 st.session_state.kolsla1= "Region"
             if "kolsla2" not in st.session_state:
-                st.session_state.kolsla2=["Troubleshoot","Activation"]
+                st.session_state.kolsla2=["Troubleshoot","Activation", "Dismantle", "Relocation Activation", "Relocation Dismantle", "Change Service"]
             if "kolsla3" not in st.session_state:
                 st.session_state.kolsla3=["Broadband","Lms", "Fiberisasi"]
             if "kolsla4" not in st.session_state:
@@ -1079,7 +1079,7 @@ if uploaded is not None:
             with kolsla2:
                 st.markdown("WO Type")
                 with st.expander("WO Type"):
-                    wotype= ['Troubleshoot', 'Activation']
+                    wotype= ["Troubleshoot","Activation", "Dismantle", "Relocation Activation", "Relocation Dismantle", "Change Service"]
                     jumlahtype= sladf["WorkOrderTypeName"].value_counts().to_dict()
                     type_terpilih=[]
                     for w in wotype:
